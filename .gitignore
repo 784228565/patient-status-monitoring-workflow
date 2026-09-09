@@ -1,0 +1,15 @@
+# ===== 患者实例数据（含准标识信息，禁止上传公开仓库）=====
+data/
+output/
+原始资料/
+
+# ===== 本机/系统文件 =====
+*.bak
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 临时文件 =====
+_tmp*
+*.tmp
+__pycache__/

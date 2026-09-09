@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "risk_prediction",
+  "description": "W3 输出：未来 1-4 周风险预警",
+  "type": "object",
+  "required": ["prediction_date", "horizon", "risks"],
+  "properties": {
+    "prediction_date": { "type": "string" },
+    "horizon": { "type": "string", "default": "未来1-4周" },
+    "incremental_update": { "type": "string", "description": "增量版注明所基于的上一版" },
+    "disclaimer": { "type": "string" },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["risk", "level", "evidence", "mechanism", "monitor", "red_flag"],
+        "properties": {
+          "risk": { "type": "string", "description": "风险名称（可带域前缀，如 感染（肺部/尿路））" },
+          "level": { "type": "string", "enum": ["高", "中", "低", "暂未发现迹象"] },
+          "evidence": { "type": "array", "items": { "type": "string" }, "description": "依据数据点，含日期" },
+          "mechanism": { "type": "string" },
+          "monitor": { "type": "string", "description": "监测项与频率" },
+          "red_flag": { "type": "string", "description": "需立即就医的具体可观察情况" },
+          "reference": { "type": "object", "properties": {
+            "title": { "type": "string" }, "journal": { "type": "string" }, "pmid": { "type": "string" }
+          }, "description": "可选：循证文献（须 PMID 核实）" }
+        }
+      }
+    },
+    "resolved_or_improved": { "type": "array", "items": { "type": "string" }, "description": "已缓解/改善的问题清单" }
+  }
+}

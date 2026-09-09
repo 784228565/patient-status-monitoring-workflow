@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "patient_timeline",
+  "description": "W1 输出：患者病程时间线（数组，按 date 升序；date 为 null 的事件排在最后）",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["date", "type", "source_file", "summary"],
+    "properties": {
+      "date": { "type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "资料内部出现的日期（报告日期/就诊日期），无则 null" },
+      "type": { "type": "string", "enum": ["lab_blood", "lab_urine", "lab_liver_kidney", "imaging", "outpatient", "chemo", "immunotherapy", "radiotherapy", "symptom_note", "doctor_chat", "other"] },
+      "source_file": { "type": "string", "description": "相对项目根目录的文件路径" },
+      "summary": { "type": "string", "description": "一句话概括；转录副本并入时注明去重" },
+      "extracted_data": {
+        "type": "object",
+        "description": "检验事件含 items 数组；影像事件含 findings/impressions/related_files；门诊事件含 department/diagnosis/orders/medications",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "value"],
+              "properties": {
+                "name": { "type": "string" },
+                "abbr": { "type": "string" },
+                "value": { "type": ["string", "number"] },
+                "unit": { "type": "string" },
+                "ref": { "type": "string" },
+                "flag": { "type": "string", "enum": ["high", "low", "normal", "unclear"], "description": "high=↑ low=↓ normal=正常 unclear=无法辨认" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

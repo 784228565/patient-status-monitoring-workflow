@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "status_assessment",
+  "description": "W2 输出：当前状态评估（以时间线最新事件日期为基准日）",
+  "type": "object",
+  "required": ["assessment_date", "treatment_stage", "latest_labs", "trend_comparison", "bone_marrow_suppression_ctcae_reference", "symptom_list", "comorbidity_status", "data_gaps"],
+  "properties": {
+    "assessment_date": { "type": "string", "description": "时间线最新事件日期，即分析基准日" },
+    "based_on_timeline_events": { "type": "number", "description": "时间线事件总数" },
+    "incremental_update": { "type": "string", "description": "增量版注明所基于的上一版" },
+    "disclaimer": { "type": "string" },
+    "treatment_stage": { "type": "object", "properties": {
+      "stage": { "type": "string" },
+      "evidence": { "type": "array", "items": { "type": "string" }, "description": "推断依据（引用时间线事件日期）" },
+      "uncertainties": { "type": "string" }
+    }},
+    "latest_labs": { "type": "object", "description": "按 <面板>_<日期> 键组织，如 cbc_2026-09-03 / urine_latest_2026-09-04；每个面板含 source 与 items（name/value/ref/status/meaning）或 summary/findings" },
+    "trend_comparison": { "type": "object", "description": "按指标名键组织，每项含带日期的历史值与 trend（上升/下降/持平/新出现）" },
+    "bone_marrow_suppression_ctcae_reference": { "type": "object", "description": "CTCAE 思路参考分级（note 注明非诊断）" },
+    "symptom_list": { "type": "array", "items": { "type": "object", "properties": {
+      "symptom": { "type": "string" }, "since": { "type": "string" }, "source": { "type": "string" }, "note": { "type": "string" }
+    }}},
+    "comorbidity_status": { "type": "object", "description": "按合并症名键组织的状态描述" },
+    "data_gaps": { "type": "array", "items": { "type": "string" } }
+  }
+}

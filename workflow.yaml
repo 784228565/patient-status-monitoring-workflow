@@ -1,0 +1,120 @@
+# ============================================================
+# 患者状态监测与风险预警工作流（Kimi 自动化执行定义）
+# 用法: 将本文件夹放入任意项目根目录，与「原始资料/」文件夹同级
+# 版本: v1.1  创建日期: 2026-08-30  更新: 2026-09-07（去除本机路径、隐私清理）
+# ============================================================
+
+workflow:
+  name: 患者状态监测与风险预警工作流
+  description: >
+    以「原始资料」文件夹中的医疗资料（检验报告图片、门诊病历截图、聊天记录等）为输入，
+    按资料中出现的时间线构建患者病程，评估最新时间点的患者状态，
+    并预测短期内可能出现的身体问题，输出家属可读的风险预警报告。
+  runner: kimi-cli            # 由 Kimi Code CLI 按阶段顺序执行
+  language: zh-CN
+
+  # ---------------- 全局红线（任何阶段不得违反） ----------------
+  red_lines:
+    - 不提供具体医疗处方或药物剂量建议
+    - 不替代临床医生判断，所有结论标注"仅供参考，以主治医生为准"
+    - 不杜撰检验数值；资料中不存在的数据标记为 data_gap
+    - 输出给家属的报告中不出现身份证号、电话等敏感信息
+    - 风险预测必须注明依据的资料日期与数据点
+
+  # ---------------- 触发方式 ----------------
+  triggers:
+    - name: 新资料到达
+      condition: 原始资料/ 文件夹中新增或修改了文件
+      action: 依次执行 W1 -> W2 -> W3 -> W4 -> W5
+    - name: 手动触发
+      command_hint: 让 Kimi 运行"执行患者状态监测工作流"
+      action: 依次执行 W1 -> W2 -> W3 -> W4 -> W5
+    - name: 仅重分析
+      condition: 时间线数据无变化，只想重新生成分析
+      action: 跳过 W1，执行 W2 -> W3 -> W4 -> W5
+    - name: 跳过深度调研
+      condition: 只需快速更新状态报告，不需要文献调研（W5 耗时较长）
+      command_hint: "执行工作流，跳过W5"
+      action: 依次执行 W1 -> W2 -> W3 -> W4
+
+  # ---------------- 阶段定义 ----------------
+  stages:
+    - id: W1
+      name: 资料摄取与时间线更新
+      prompt: prompts/W1_资料摄取与时间线.md
+      inputs:
+        - 原始资料/            # 全部图片与文本
+        - data/patient_timeline.json   # 既有时间线（增量更新）
+      outputs:
+        - data/patient_timeline.json   # 追加新事件，保持按日期升序
+      acceptance:
+        - 每个事件含 date / type / source_file / summary / extracted_data
+        - 检验数值逐项提取（项目名、结果、单位、参考区间、升降箭头）
+        - 无法辨认的内容标记 unclear，禁止猜测填写
+
+    - id: W2
+      name: 当前状态评估
+      prompt: prompts/W2_当前状态评估.md
+      inputs:
+        - data/patient_timeline.json
+      outputs:
+        - output/status_assessment_<最新日期>.json
+      acceptance:
+        - 以时间线中最新日期为"当前时间点"
+        - 含：治疗阶段定位、最新检验逐项解读、与上一次检验的趋势对比、症状清单
+        - 骨髓抑制按 CTCAE 思路分级（仅作参考分级，注明非诊断）
+
+    - id: W3
+      name: 风险预警预测
+      prompt: prompts/W3_风险预警预测.md
+      inputs:
+        - data/patient_timeline.json
+        - output/status_assessment_<最新日期>.json
+      outputs:
+        - output/risk_prediction_<最新日期>.json
+      acceptance:
+        - 每条风险含：风险名称 / 等级(高-中-低) / 依据数据点 / 发生机制 / 建议监测项 / 就医红旗
+        - 至少覆盖：感染、出血、胃肠道（腹泻/瘘）、代谢（血糖）、肾脏、营养、治疗中断
+        - 可选：调用 pubmed MCP 检索循证支持（检索词用英文）
+
+    - id: W4
+      name: 报告生成
+      prompt: prompts/W4_报告生成.md
+      inputs:
+        - output/status_assessment_<最新日期>.json
+        - output/risk_prediction_<最新日期>.json
+      outputs:
+        - output/患者状态报告_<最新日期>.md
+      acceptance:
+        - 家属可读：避免堆砌术语，术语后附通俗解释
+        - 含三栏：当前状态小结 / 需要警惕的身体问题（按等级排序）/ 下次复诊要问医生的问题清单
+        - 文末固定附免责声明
+
+    - id: W5
+      name: 深度调研（Deep Research，最后一步）
+      prompt: prompts/W5_深度调研.md
+      inputs:
+        - data/患者问题清单_2026-08-30.md
+        - output/status_assessment_<最新日期>.json
+        - output/risk_prediction_<最新日期>.json
+      outputs:
+        - output/deep_research_<执行日期>.md
+      acceptance:
+        - 按问题清单逐项输出：核心共识 + 2024-2026 顶刊新进展 + 争议空白 + 对本病例的适用性提示
+        - 文献结论附 PMID/DOI，用 pubmed MCP 核实文献真实存在，禁止虚构
+        - 高等级风险问题优先调研
+        - 不给具体用药剂量处方
+
+  # ---------------- 数据文件 ----------------
+  data_files:
+    timeline: data/patient_timeline.json
+    problem_list: data/患者问题清单_2026-08-30.md
+    schemas_dir: schemas/
+    output_dir: output/
+
+  # ---------------- 既有项目资产（可供 W3/W4 引用） ----------------
+  project_assets:
+    - FINAL_REPORT.md                      # 既有循证总报告
+    - T4_stage2_treatment_decision_analysis.json
+    - T5_stage3_symptom_management.json
+    - 原始资料/局部晚期宫颈癌同步放化疗联合免疫治疗循证报告.md
